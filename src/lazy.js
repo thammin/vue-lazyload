@@ -1,8 +1,8 @@
-import { 
+import {
     inBrowser,
-    remove, 
-    some, 
-    find, 
+    remove,
+    some,
+    find,
     _,
     throttle,
     supportWebp,
@@ -20,7 +20,7 @@ const DEFAULT_EVENTS = ['scroll', 'wheel', 'mousewheel', 'resize', 'animationend
 
 export default function (Vue) {
     return class Lazy {
-        constructor ({ preLoad, error, preLoadTop, dispatchEvent, loading, attempt, silent, scale, listenEvents, hasbind, filter, adapter }) {
+        constructor ({ preLoad, error, preLoadTop, dispatchEvent, beforeLoad, loading, attempt, silent, scale, listenEvents, hasbind, filter, adapter }) {
             this.version = '__VUE_LAZYLOAD_VERSION__'
             this.ListenerQueue = []
             this.TargetIndex = 0
@@ -31,6 +31,7 @@ export default function (Vue) {
                 preLoad: preLoad || 1.3,
                 preLoadTop: preLoadTop || 0,
                 error: error || DEFAULT_URL,
+                beforeLoad: beforeLoad || DEFAULT_URL,
                 loading: loading || DEFAULT_URL,
                 attempt: attempt || 3,
                 scale: scale || getDPR(scale),
@@ -63,7 +64,7 @@ export default function (Vue) {
 
         /**
          * output listener's load performance
-         * @return {Array} 
+         * @return {Array}
          */
         performance () {
             let list = []
@@ -92,7 +93,7 @@ export default function (Vue) {
 
         /**
          * add image listener to queue
-         * @param  {DOM} el 
+         * @param  {DOM} el
          * @param  {object} binding vue directive binding
          * @param  {vnode} vnode vue directive vnode
          * @return
@@ -103,7 +104,7 @@ export default function (Vue) {
                 return Vue.nextTick(this.lazyLoadHandler)
             }
 
-            let { src, loading, error } = this._valueFormatter(binding.value)
+            let { src, beforeLoad, loading, error } = this._valueFormatter(binding.value)
 
             Vue.nextTick(() => {
                 src = getBestSelectionFromSrcset(el, this.options.scale) || src
@@ -125,6 +126,7 @@ export default function (Vue) {
                     bindType: binding.arg,
                     $parent,
                     el,
+                    beforeLoad,
                     loading,
                     error,
                     src,
@@ -145,7 +147,7 @@ export default function (Vue) {
 
          /**
          * update image src
-         * @param  {DOM} el 
+         * @param  {DOM} el
          * @param  {object} vue directive binding
          * @return
          */
@@ -165,7 +167,7 @@ export default function (Vue) {
 
         /**
          * remove listener form list
-         * @param  {DOM} el 
+         * @param  {DOM} el
          * @return
          */
         remove (el) {
@@ -180,7 +182,7 @@ export default function (Vue) {
 
         /**
          * remove lazy components form list
-         * @param  {Vue} vm Vue instance 
+         * @param  {Vue} vm Vue instance
          * @return
          */
         removeComponent (vm) {
@@ -191,12 +193,12 @@ export default function (Vue) {
             }
             this._removeListenerTarget(window)
         }
-        
+
         /**** Private functions ****/
 
         /**
          * add listener target
-         * @param  {DOM} el listener target 
+         * @param  {DOM} el listener target
          * @return
          */
         _addListenerTarget (el) {
@@ -248,6 +250,7 @@ export default function (Vue) {
         _initEvent () {
             this.Event = {
                 listeners: {
+                    beforeLoad: [],
                     loading: [],
                     loaded: [],
                     error: []
@@ -285,7 +288,7 @@ export default function (Vue) {
          * set element attribute with image'url and state
          * @param  {object} lazyload listener object
          * @param  {string} state will be rendered
-         * @param  {bool} inCache  is rendered from cache 
+         * @param  {bool} inCache  is rendered from cache
          * @return
          */
         _elRenderer (listener, state, cache) {
@@ -294,6 +297,9 @@ export default function (Vue) {
 
             let src
             switch (state) {
+                case 'beforeLoad':
+                    src = listener.beforeLoad
+                    break;
                 case 'loading':
                     src = listener.loading
                     break
@@ -325,12 +331,13 @@ export default function (Vue) {
         }
 
         /**
-         * generate loading loaded error image url 
+         * generate loading loaded error image url
          * @param {string} image's src
-         * @return {object} image's loading, loaded, error url
+         * @return {object} image's beforeLoad, loading, loaded, error url
          */
         _valueFormatter (value) {
             let src = value
+            let beforeLoad = this.options.beforeLoad
             let loading = this.options.loading
             let error = this.options.error
 
@@ -338,11 +345,13 @@ export default function (Vue) {
             if (isObject(value)) {
                 if (!value.src && !this.options.silent) console.error('Vue Lazyload warning: miss src with ' + value)
                 src = value.src
+                beforeLoad = value.beforeLoad || this.options.beforeLoad
                 loading = value.loading || this.options.loading
                 error = value.error || this.options.error
             }
             return {
                 src,
+                beforeLoad,
                 loading,
                 error
             }
